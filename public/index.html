@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Broker Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="icon">🔐</span>
+                <h1>Trust Broker</h1>
+            </div>
+            <p class="subtitle">Secure JWKS & Token Broker</p>
+        </header>
+
+        <main>
+            <div class="grid-layout">
+                <section class="card key-generator">
+                    <div class="card-header">
+                        <h2>Generate New Key</h2>
+                        <span class="badge">POST /keys</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="form-group">
+                            <label for="new-kid">Key ID (kid)</label>
+                            <input type="text" id="new-kid" placeholder="e.g. prod-key-v1">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-expiry">Expiration Time (e.g. 2h, 1d)</label>
+                            <input type="text" id="new-expiry" placeholder="e.g. 2h">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-audience">Audience (aud)</label>
+                            <input type="text" id="new-audience" placeholder="e.g. my-app">
+                        </div>
+                        <button id="create-key-btn" class="primary-btn">Create & Save</button>
+                    </div>
+                </section>
+
+                <section class="card key-explorer">
+                    <div class="card-header">
+                        <h2>Key Explorer</h2>
+                        <span class="badge">GET /.well-known/jwk?id=...</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="search-box">
+                            <input type="text" id="lookup-kid" placeholder="Enter kid to lookup...">
+                            <button id="lookup-btn" class="secondary-btn">Lookup</button>
+                        </div>
+                        <div class="code-block explorer-result">
+                            <pre id="jwk-display">Search for a key ID to view its JWK...</pre>
+                            <button class="copy-btn" data-target="jwk-display">Copy</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="card token-issuer">
+                <div class="card-header">
+                    <h2>Issue Test Token</h2>
+                    <span class="badge">POST /issue-token</span>
+                </div>
+                <div class="card-content">
+                    <div class="form-group">
+                        <label for="issuing-kid">Sign with Key ID (kid)</label>
+                        <input type="text" id="issuing-kid" placeholder="Enter kid from Generator or Explorer">
+                    </div>
+                    <div class="form-group">
+                        <label for="payload-input">Payload (JSON)</label>
+                        <textarea id="payload-input" rows="5">{
+  "sub": "demo-user-123",
+  "name": "Jane Doe",
+  "admin": true,
+  "scope": "read write"
+}</textarea>
+                    </div>
+                    <button id="issue-btn" class="primary-btn">Generate Signed JWT</button>
+                    
+                    <div id="token-result" class="result-area hidden">
+                        <label>Signed JWT</label>
+                        <div class="code-block">
+                            <pre id="token-display"></pre>
+                            <button class="copy-btn" data-target="token-display">Copy</button>
+                        </div>
+                        <div class="tools">
+                            <a id="jwt-io-link" href="#" target="_blank" class="text-link">Verify on JWT.io ↗</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Powered by <code>jose</code> & <code>express</code></p>
+        </footer>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

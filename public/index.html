@@ -32,8 +32,13 @@
                             <input type="text" id="new-kid" placeholder="e.g. prod-key-v1">
                         </div>
                         <div class="form-group">
-                            <label for="new-expiry">Expiration Time (e.g. 2h, 1d)</label>
-                            <input type="text" id="new-expiry" placeholder="e.g. 2h">
+                            <label for="new-expiry">Expiration Time</label>
+                            <select id="new-expiry" class="form-select">
+                                <option value="15m">15 Minutes</option>
+                                <option value="30m">30 Minutes</option>
+                                <option value="1h">1 Hour</option>
+                                <option value="2h" selected>2 Hours</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="new-audience">Audience (aud)</label>

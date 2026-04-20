@@ -16,11 +16,12 @@ const pool = new Pool({
     }
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 const port = process.env.PORT || 3000;
 
-
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // JWK Endpoint - Serves a specific public key by id
@@ -58,14 +59,14 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/keys/list', async (req, res) => {
     try {
         let dbKids = [];
-        
+
         try {
             const dbResult = await pool.query('SELECT kid FROM trust_broker.jwks_keys');
             dbKids = dbResult.rows.map(row => row.kid);
         } catch (dbErr) {
             console.error('Database query for keys failed:', dbErr.message);
         }
-        
+
         res.json(dbKids);
     } catch (err) {
         console.error('Error listing keys:', err);
@@ -182,12 +183,19 @@ app.post('/keys', async (req, res) => {
     }
 });
 
-// Start server
-
-
-app.listen(port, () => {
-    console.log(`\n🚀 Multi-Key JWK Auth Server running at:`);
-    console.log(`   http://localhost:${port}`);
-    console.log(`\n🔑 JWK Lookup Endpoint:`);
-    console.log(`   http://localhost:${port}/.well-known/jwk?id=<kid>\n`);
+// Catch-all route to serve index.html for all other requests
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Start server
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`\n🚀 Multi-Key JWK Auth Server running locally at:`);
+        console.log(`   http://localhost:${port}`);
+        console.log(`\n🔑 JWK Lookup Endpoint:`);
+        console.log(`   http://localhost:${port}/.well-known/jwk?id=<kid>\n`);
+    });
+}
+
+export default app;

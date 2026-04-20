@@ -16,63 +16,9 @@ const pool = new Pool({
     }
 });
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const KEY_DIR = path.join(__dirname, 'keys');
-
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Store multiple keys indexed by kid
-const keys = {};
-
-async function ensureKey(id) {
-    const kid = `demo-key-${id}`;
-    const privPath = path.join(KEY_DIR, `private-${id}.pem`);
-    const pubPath = path.join(KEY_DIR, `public-${id}.pem`);
-
-    let privateKey, publicKey;
-
-    try {
-        const privatePem = await fs.readFile(privPath, 'utf8');
-        const publicPem = await fs.readFile(pubPath, 'utf8');
-        privateKey = await jose.importPKCS8(privatePem, 'RS256');
-        publicKey = await jose.importSPKI(publicPem, 'RS256');
-        console.log(`Loaded key: ${kid}`);
-    } catch (e) {
-        console.log(`Generating new key: ${kid}...`);
-        const { publicKey: pub, privateKey: priv } = await jose.generateKeyPair('RS256', {
-            extractable: true,
-            modulusLength: 2048,
-        });
-        privateKey = priv;
-        publicKey = pub;
-
-        const privatePem = await jose.exportPKCS8(privateKey);
-        const publicPem = await jose.exportSPKI(publicKey);
-
-        await fs.writeFile(privPath, privatePem);
-        await fs.writeFile(pubPath, publicPem);
-        console.log(`Key ${kid} generated and saved`);
-    }
-
-    const jwk = await jose.exportJWK(publicKey);
-    jwk.kid = kid;
-    jwk.alg = 'RS256';
-    jwk.use = 'sig';
-
-    keys[kid] = { privateKey, publicKey, jwk };
-}
-
-async function ensureAllKeys() {
-    try {
-        await fs.mkdir(KEY_DIR, { recursive: true });
-        // Guarantee at least 3 keys on disk
-        await Promise.all([1, 2, 3].map(ensureKey));
-    } catch (err) {
-        console.error('Error managing keys:', err);
-        process.exit(1);
-    }
-}
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -86,12 +32,7 @@ app.get('/.well-known/jwk', async (req, res) => {
             return res.status(400).json({ error: "Missing 'id' query parameter" });
         }
 
-        // 1. Check disk-based keys first
-        if (keys[id]) {
-            return res.json(keys[id].jwk);
-        }
-
-        // 2. Check Database-backed keys
+        // Check Database-backed keys
         const result = await pool.query(
             'SELECT jwk FROM trust_broker.jwks_keys WHERE kid = $1',
             [id]
@@ -116,19 +57,16 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
  */
 app.get('/keys/list', async (req, res) => {
     try {
-        const inMemoryKids = Object.keys(keys);
         let dbKids = [];
         
         try {
             const dbResult = await pool.query('SELECT kid FROM trust_broker.jwks_keys');
             dbKids = dbResult.rows.map(row => row.kid);
         } catch (dbErr) {
-            console.error('Database query for keys failed, falling back to in-memory keys:', dbErr.message);
+            console.error('Database query for keys failed:', dbErr.message);
         }
         
-        // Combine and deduplicate
-        const allKids = Array.from(new Set([...inMemoryKids, ...dbKids]));
-        res.json(allKids);
+        res.json(dbKids);
     } catch (err) {
         console.error('Error listing keys:', err);
         res.status(500).json({ error: 'Failed to list keys' });
@@ -153,24 +91,17 @@ app.post('/issue-token', async (req, res) => {
         const DEFAULT_AUDIENCE = 'demo-app';
         const DEFAULT_EXPIRATION = '2h';
 
-        // 1. Check in-memory keys
-        if (keys[kid]) {
-            privateKey = keys[kid].privateKey;
-            audience = DEFAULT_AUDIENCE;
-            expirationTime = DEFAULT_EXPIRATION;
-        } else {
-            // 2. Check Database-backed keys
-            const result = await pool.query(
-                'SELECT private_key, expiration_time, audience FROM trust_broker.jwks_keys WHERE kid = $1',
-                [kid]
-            );
+        // Check Database-backed keys
+        const result = await pool.query(
+            'SELECT private_key, expiration_time, audience FROM trust_broker.jwks_keys WHERE kid = $1',
+            [kid]
+        );
 
-            if (result.rows.length > 0) {
-                // Import the PKCS8 private key string
-                privateKey = await jose.importPKCS8(result.rows[0].private_key, 'RS256');
-                expirationTime = result.rows[0].expiration_time || DEFAULT_EXPIRATION;
-                audience = result.rows[0].audience || DEFAULT_AUDIENCE;
-            }
+        if (result.rows.length > 0) {
+            // Import the PKCS8 private key string
+            privateKey = await jose.importPKCS8(result.rows[0].private_key, 'RS256');
+            expirationTime = result.rows[0].expiration_time || DEFAULT_EXPIRATION;
+            audience = result.rows[0].audience || DEFAULT_AUDIENCE;
         }
 
         // Validation: Ensure the key was found
@@ -251,8 +182,8 @@ app.post('/keys', async (req, res) => {
     }
 });
 
-// Initialize keys and start server
-await ensureAllKeys();
+// Start server
+
 
 app.listen(port, () => {
     console.log(`\n🚀 Multi-Key JWK Auth Server running at:`);

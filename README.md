@@ -27,18 +27,13 @@ graph TD
     end
 
     subgraph Storage [Persistent Storage]
-        Memory[In-Memory Cache]
-        Local[Local Disk PEMs]
         Neon[Neon Serverless PostgreSQL]
     end
 
     UI --> Validation
     Validation --> Jose
-    Jose --> Memory
-    Jose --> Local
     Jose --> Neon
     Auto --> List
-    List --> Memory
     List --> Neon
 ```
 
@@ -52,7 +47,7 @@ Trust Broker leverages **Neon PostgreSQL** to provide a truly serverless backend
 - **Autoscaling**: Neon's compute resources scale up automatically during token generation spikes and scale down to zero when the dashboard is idle, ensuring zero cost at rest.
 - **Connection Pooling**: Neon optimizes connections through built-in pooling, allowing Trust Broker to handle thousands of concurrent key lookups without hitting database connection limits.
 - **Performance Preservation**: Unlike traditional DBs where scaling can introduce latency, Neon's separation of storage and compute ensures that key retrieval remains fast regardless of database size.
-- **Resilient Fallbacks**: Trust Broker is architected to utilize local disk-based demo keys if the database connection is ever interrupted, guaranteeing high availability for critical signing tasks.
+- **Source of Truth**: By centralizing all keys in a managed serverless cloud, Trust Broker eliminates the risks associated with local disk persistence and inconsistent in-memory states.
 
 ---
 

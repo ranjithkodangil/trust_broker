@@ -33,12 +33,16 @@
                         </div>
                         <div class="form-group">
                             <label for="new-expiry">Expiration Time</label>
-                            <select id="new-expiry" class="form-select">
-                                <option value="15m">15 Minutes</option>
-                                <option value="30m">30 Minutes</option>
-                                <option value="1h">1 Hour</option>
-                                <option value="2h" selected>2 Hours</option>
-                            </select>
+                            <div class="custom-select" id="new-expiry-select">
+                                <button class="select-trigger" id="new-expiry-trigger">2 Hours</button>
+                                <div class="select-options">
+                                    <div class="select-option" data-value="15m">15 Minutes</div>
+                                    <div class="select-option" data-value="30m">30 Minutes</div>
+                                    <div class="select-option" data-value="1h">1 Hour</div>
+                                    <div class="select-option selected" data-value="2h">2 Hours</div>
+                                </div>
+                                <input type="hidden" id="new-expiry" value="2h">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="new-audience">Audience (aud)</label>
@@ -55,7 +59,9 @@
                     </div>
                     <div class="card-content">
                         <div class="search-box">
-                            <input type="text" id="lookup-kid" placeholder="Enter kid to lookup...">
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="lookup-kid" placeholder="Enter kid to lookup...">
+                            </div>
                             <button id="lookup-btn" class="secondary-btn">Lookup</button>
                         </div>
                         <div class="code-block explorer-result">
@@ -74,7 +80,9 @@
                 <div class="card-content">
                     <div class="form-group">
                         <label for="issuing-kid">Sign with Key ID (kid)</label>
-                        <input type="text" id="issuing-kid" placeholder="Enter kid from Generator or Explorer">
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="issuing-kid" placeholder="Enter kid from Generator or Explorer">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="payload-input">Payload (JSON)</label>
@@ -85,7 +93,7 @@
   "scope": "read write"
 }</textarea>
                     </div>
-                    <button id="issue-btn" class="primary-btn">Generate Signed JWT</button>
+                    <button id="issue-btn" class="primary-btn" disabled>Generate Signed JWT</button>
                     
                     <div id="token-result" class="result-area hidden">
                         <label>Signed JWT</label>
@@ -105,6 +113,7 @@
             <p>Powered by <code>jose</code> & <code>express</code></p>
         </footer>
     </div>
+    <div id="toast-container"></div>
     <script src="app.js"></script>
 </body>
 </html>

@@ -108,15 +108,42 @@ app.get('/.well-known/jwk', async (req, res) => {
     }
 });
 
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+/**
+ * API to list all available Key IDs (KIDs)
+ */
+app.get('/keys/list', async (req, res) => {
+    try {
+        const inMemoryKids = Object.keys(keys);
+        let dbKids = [];
+        
+        try {
+            const dbResult = await pool.query('SELECT kid FROM trust_broker.jwks_keys');
+            dbKids = dbResult.rows.map(row => row.kid);
+        } catch (dbErr) {
+            console.error('Database query for keys failed, falling back to in-memory keys:', dbErr.message);
+        }
+        
+        // Combine and deduplicate
+        const allKids = Array.from(new Set([...inMemoryKids, ...dbKids]));
+        res.json(allKids);
+    } catch (err) {
+        console.error('Error listing keys:', err);
+        res.status(500).json({ error: 'Failed to list keys' });
+    }
+});
+
 // Issuing Endpoint - Requires x-key-id header
 app.post('/issue-token', async (req, res) => {
     try {
-        const { payload = { sub: 'demo-user' } } = req.body;
+        const { payload } = req.body;
         const kid = req.headers['x-key-id'];
 
         // Validation: Ensure kid is provided in the header
         if (!kid) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: "Missing required header: 'x-key-id'",
                 message: "Please specify which key to use for signing via the 'x-key-id' header."
             });
@@ -148,7 +175,7 @@ app.post('/issue-token', async (req, res) => {
 
         // Validation: Ensure the key was found
         if (!privateKey) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: "Invalid Key ID",
                 message: `The key ID '${kid}' was not found on this server or in the database.`
             });
@@ -157,12 +184,13 @@ app.post('/issue-token', async (req, res) => {
         const jwt = await new jose.SignJWT(payload)
             .setProtectedHeader({ alg: 'RS256', kid: kid })
             .setIssuedAt()
-            .setIssuer(`http://localhost:${port}`)
+            .setIssuer(`${req.protocol}://${req.get('host')}`)
             .setAudience(audience)
             .setExpirationTime(expirationTime)
             .sign(privateKey);
 
-        res.json({ 
+
+        res.json({
             token: jwt,
             kid: kid
         });
@@ -171,9 +199,12 @@ app.post('/issue-token', async (req, res) => {
     }
 });
 
+// --- Key Management APIs ---
+
+
+
 /**
  * API to generate and store a new JWK in the database.
- * Body: { kid: string, expiration_time: string, audience: string }
  */
 app.post('/keys', async (req, res) => {
     try {
